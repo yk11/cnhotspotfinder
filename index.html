@@ -1,0 +1,300 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN""http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        body { width: 60%; max-width: 1000px; margin: 25px 20%; font-size: 16px; font-family: Verdana,Arial; color: #CCC; background: #111; }
+        button, input { font-size: 16px; padding: 4px 8px; }
+        h1 { text-align: center; color: #FFF; margin-top: 0; }
+        a { color: #FFBB88; }
+        form { width: auto; margin: 0 auto; }
+	    hr { margin: 20px 0; }
+
+        @media screen and (max-width: 960px) {
+            body { width: 98%; margin: 0 1%; }
+        }
+
+        .align-center { text-align: center; margin: 0 auto; }
+        .align-right { text-align: right; float: right; }
+
+        table { border: collapse; margin: auto; max-width: 600px; }
+        table th { font-weight: bold; position: sticky; top: 0; }
+        table td { padding: 6px 12px; }
+
+        button { background: #333; color: #FFF; border-radius: 5px; border: 1px solid #CCC; padding: 6px 10px; cursor: pointer; text-decoration: none; line-height: normal; font-size: 16px; margin: 0 10px; vertical-align: baseline; text-align: center; }
+        @media screen and (max-width: 783px) {
+            button { font-size: 24px; }
+        }
+        button:hover { color: #FF8833; }
+
+        #find-button { margin: 16px auto 8px auto; }
+
+        #possible-hotspots, #testpoint-table-wrapper { position: relative; }
+        #table-scroll-toggle,  #add-testpoint-button { position: absolute; top: 20px; right: 0; }
+
+        #hotspots-table { position: relative; background: #444444; }
+        #hotspots-table th { background: #777777; }
+        #hotspots-table td { width: 128px; }
+
+        .table-scroll { max-height: 250px; overflow: auto; }
+        .table-scroll thead th { position: sticky; top: 0; }
+    </style>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-QQKKBN5YKS"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-QQKKBN5YKS');
+    </script>
+</head>
+
+<body>
+<h1>Cyber Nations Moon & Mars Hotspot Finder</h1>
+<hr/>
+
+<p>Instructions:</p>
+<ul>
+    <li>Enter test lat, lon, and effectiveness values (50 for 50%)</li>
+    <li>Click "Find Hotspots"</li>
+</ul>
+
+<p><strong>NOTE:</strong> If you are trying to find both the Moon hotspot and Mars hotspot, open two separate instances of this page: one for Moon and one for Mars. Do not combine Moon and Mars test points. Moon test points do NOT help find the Mars hotspot or vice versa like they did for Luna's spreadsheet.</p>
+
+<p>Once found, you can use the <a href="https://www.cnwondermover.com/" target="_blank">Moon & Mars Wonder Mover</a> tool.</p>
+
+<p>Thanks to <a href="https://forums.cybernations.net/profile/56811-luna/" target="_blank">Luna</a> for contributing the math needed for this tool.  You can find the original CN thread <a href="https://forums.cybernations.net/topic/64843-moon-hotspot/" target="_blank">here</a>.</p>
+
+<hr/>
+
+<div id="testpoint-table-wrapper">
+    <button id="add-testpoint-button" onClick="addTestpointRow();">Add row</button>
+
+    <table id="testpoints-table">
+        <thead>
+            <tr>
+                <th>Lat</th>
+                <th>Lon</th>
+                <th>Effectiveness</th>
+            </tr>
+        </thead>
+
+        <tbody></tbody>
+    </table>
+</div>
+
+<p class="align-center"><button id="find-button" onClick="processTestpoints();">Find Hotspots</button></p>
+
+<div id="possible-hotspots" class="align-center" style="display: none;">
+    <hr/>
+
+    <h2>Possible Hotspots <span class="font-normal align-right"></h2>
+    <button id="table-scroll-toggle" onClick="toggleTableDisplay();">Toggle scroll on/off</button>
+
+    <div id="hotspot-table-wrapper" class="table-scroll">
+        <table id="hotspots-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Lat</th>
+                    <th>Lon</th>
+                </tr>
+            </thead>
+        
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <p id="message" style="display: none;"></p>
+</div>
+
+<script>
+    const DEG2RAD = Math.PI / 180;
+    const MAX_HOTSPOTS = 500;
+    const lat_correction_list = {
+        '-84': '-84.00000002',
+        '-80': '-80.00000001',
+        '-72': '-72.00000001',
+        '-71': '-70.99999999',
+        '-70': '-69.99999999',
+        '-66': '-66.00000001',
+        '-63': '-62.99999999',
+        '-55': '-54.99999999',
+        '-51': '-50.99999999',
+        '-48': '-48.00000001',
+        '-47': '-46.99999999',
+        '-41': '-40.99999997',
+        '-40': '-39.99999999',
+        '-35': '-34.99999999',
+        '-29': '-28.99999998',
+        '-24': '-23.99999999',
+        '-18': '-17.99999998',
+        '-12': '-11.99999999',
+        '-10': '-9.99999999',
+        '-8': '-7.99999999',
+        '-7': '-6.99999999',
+        '-6': '-5.99999999',
+        '-4': '-4.00000001',
+        '-3': '-2.99999999',
+        '3': '2.99999999',
+        '4': '4.00000001',
+        '6': '5.99999999',
+        '7': '6.99999999',
+        '8': '7.99999999',
+        '10': '9.99999999',
+        '12': '11.99999999',
+        '18': '17.99999998',
+        '24': '23.99999999',
+        '29': '28.99999998',
+        '35': '34.99999999',
+        '40': '39.99999999',
+        '47': '46.99999999',
+        '48': '48.00000001',
+        '51': '50.99999999',
+        '55': '54.99999999',
+        '63': '62.99999999',
+        '66': '66.00000001',
+        '70': '69.99999999',
+        '71': '70.99999999',
+        '72': '72.00000001',
+        '80': '80.00000001',
+        '84': '84.00000002'
+    };
+
+    const isNumeric = (num) => (typeof(num) === 'number' || typeof(num) === "string" && num.trim() !== '') && !isNaN(num);
+
+    function toggleTableDisplay() {
+        const tableWrapper = document.getElementById('hotspot-table-wrapper');
+        tableWrapper.classList.toggle("table-scroll");
+    }
+
+    function adjustLat(lat) {
+        return (lat in lat_correction_list) ? lat_correction_list[lat] : lat;
+    }
+
+    function addTestpointRow(count = 1) {
+        const tableBody = document.getElementById('testpoints-table').getElementsByTagName('tbody')[0];
+
+        for (i = 0; i < count; i++) {
+            const row = tableBody.insertRow();
+            row.innerHTML = '<td><input name="testpoint-lat" type="text" size="12" value="" /></td>' +
+                '<td><input name="testpoint-lon" type="text" size="12" value="" /></td>' +
+                '<td><input name="testpoint-effectiveness" type="text" size="12" value="" /></td>';
+        }
+    }
+
+    function distance(point1, point2) {
+        const lat1 = point1.lat * DEG2RAD;
+        const lon1 = point1.lon * DEG2RAD;
+        const lat2 = point2.lat * DEG2RAD;
+        const lon2 = point2.lon * DEG2RAD;
+
+        let d = Math.acos(Math.sin(lat1) * Math.sin(lat2) +  Math.cos(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1));
+        return d;
+    }
+
+    function calculateEffectiveness(test_point, hotspot) {
+        const dist = distance(test_point, hotspot);
+        return Math.max(Math.floor(100 - (dist * 124.362 / Math.PI)), 50);
+    }
+
+    function findPossibleHotspots(testPoints) {
+        const hotspots = [];
+
+        for (let lat = -84; lat <= 84; lat++) {
+            for (let lon = -179; lon <= 179; lon++) {
+                let isValidHotspot = true;
+                let effectiveness = 0;
+
+                for (const point of testPoints) {
+                    const hotspot = { lat, lon };
+                    effectiveness = calculateEffectiveness(point, hotspot);  
+                    if (point.effectiveness !== effectiveness) {
+                        isValidHotspot = false;
+                        break;
+                    }
+                }
+
+                if (isValidHotspot) {
+                    hotspots.push({ lat: adjustLat(lat), lon });
+
+                    // Limit to 50 possible hotspots
+                    if (hotspots.length >= MAX_HOTSPOTS) break;
+                }
+            }
+
+            // Limit to 50 possible hotspots
+            if (hotspots.length >= MAX_HOTSPOTS) break;
+        }
+        
+        return hotspots;
+    }
+
+    function displayHotspots(hotspots) {
+        const table = document.querySelector("#hotspots-table > tbody");
+
+        // Remove any existing rows
+        table.innerHTML = "";
+
+        // Add new rows
+        const data_count = hotspots.length;
+        for (let i = 0; i < data_count; i++) {
+            const row = table.insertRow();
+            row.insertCell().append(i + 1);
+            row.insertCell().append(hotspots[i].lat);
+            row.insertCell().append(hotspots[i].lon);
+        }
+    }
+
+    function processTestpoints() {
+        // Retrieve entered data
+        const data_lat = document.getElementsByName('testpoint-lat');
+        const data_lon = document.getElementsByName('testpoint-lon');
+        const data_effectiveness = document.getElementsByName('testpoint-effectiveness');
+
+        // Convert to list of test points
+        const testPoints = [];
+        const data_count = data_lat.length;
+        for (let i = 0; i < data_count; i++) {
+            if (!data_lat[i].value || !data_lon[i].value || !data_effectiveness[i].value) continue;
+
+            testPoints.push({
+                lat: parseFloat(data_lat[i].value.replace(/[^\d.-]/g, '')),
+                lon: parseFloat(data_lon[i].value.replace(/[^\d.-]/g, '')),
+                effectiveness: parseFloat(data_effectiveness[i].value.replace(/[^\d.-]/g, ''))
+            });
+        }
+        // Example usage:
+        /*
+        const testPoints = [
+            { lat: 80.00000001, lon: 103, effectiveness: 89 },
+            { lat: 77, lon: 22, effectiveness: 98 },
+            { lat: 78, lon: 17, effectiveness: 97 },
+        ];
+        */
+        console.log("Test Points:", testPoints);
+        
+        // Get potential hotspots and display
+        const hotspots = findPossibleHotspots(testPoints);
+        if (hotspots.length > 0) {
+            displayHotspots(hotspots);
+            document.getElementById("hotspots-table").style.display = "table";
+            document.getElementById("message").style.display = "none";
+        } else {
+            const message = document.getElementById("message");
+            message.innerHTML = "No hotspots found!";
+            message.style.display = "block";
+            document.getElementById("hotspots-table").style.display = "none";
+        }
+        document.getElementById("possible-hotspots").style.display = "block";
+        console.log("Possible Hotspots:", hotspots);
+    };
+
+    // Create initial list of test point rows
+    addTestpointRow(5);
+</script>
+
+</body>
+</html>

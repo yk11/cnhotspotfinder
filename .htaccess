@@ -1,0 +1,20 @@
+# SSL auto-renew rule
+# Allows Let's Encrypt ACME challenges to pass through as well as any other challenges to pass through such as the DCV HTTP challenges generated from AutoSSL.
+RewriteRule ^(.*?)\/.well-known\/(.*)$ - [L]
+
+# Redirects all HTTP requests to HTTPS, yet only if they are not redirected already by the server or a proxy server such as Cloudflare for example.
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Security headers
+<IfModule mod_headers.c>
+  # Fix mixed content
+  # Automatically upgrades insecure (HTTP) requests to HTTPS
+  Header always set Content-Security-Policy "upgrade-insecure-requests;"
+
+  # Enable HSTS
+  # Forces browsers to only use HTTPS and includes subdomains
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+</IfModule>
